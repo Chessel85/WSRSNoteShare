@@ -4,12 +4,18 @@
 // session lives in an HttpOnly cookie and there is no CORS.
 //
 // Phase 1 implements: POST /api/login, POST /api/logout, GET /api/me.
-// Later phases add the /api/sessions routes.
+// Phase 2 adds the /api/sessions CRUD routes.
 
 const COOKIE_NAME = "wsrs_session";
 const SESSION_TTL_SECONDS = 7776000; // 90 days
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_SECONDS = 900; // 15 minutes
+
+// Allowed enum values — the client's copy is never trusted.
+const DATE_STATUSES = ["none", "rough", "pencilled", "confirmed"];
+const STATUSES = ["idea", "firming_up", "well_formed", "ready", "archived"];
+const TITLE_MAX = 500;
+const NOTES_MAX_BYTES = 200 * 1024;
 
 // ---------------------------------------------------------------------------
 // Entry point
@@ -31,6 +37,28 @@ export async function onRequest(context) {
     if (path === "/api/me" && method === "GET") {
       return await handleMe(request, env);
     }
+
+    // Everything under /api/sessions requires a valid session.
+    const sessionsMatch = path.match(
+      /^\/api\/sessions(?:\/([A-Za-z0-9-]+))?$/
+    );
+    if (sessionsMatch) {
+      const auth = await readSession(request, env);
+      if (!auth) return json({ error: "Not signed in" }, 401);
+      if (!env.DB) return json({ error: "Database is not configured" }, 503);
+
+      const id = sessionsMatch[1];
+      if (!id) {
+        if (method === "GET") return await listSessions(request, env);
+        if (method === "POST") return await createSession(request, env, auth);
+        return json({ error: "Method not allowed" }, 405);
+      }
+      if (method === "GET") return await getSessionRecord(env, id);
+      if (method === "PUT") return await updateSession(request, env, auth, id);
+      if (method === "DELETE") return await deleteSession(env, id);
+      return json({ error: "Method not allowed" }, 405);
+    }
+
     return json({ error: "Not found" }, 404);
   } catch (err) {
     // Never leak internals; log for the owner.
@@ -100,6 +128,147 @@ async function handleMe(request, env) {
   const session = await readSession(request, env);
   if (!session) return json({ error: "Not signed in" }, 401);
   return json({ user: session.u }, 200);
+}
+
+// ---------------------------------------------------------------------------
+// Sessions CRUD (Phase 2)
+// ---------------------------------------------------------------------------
+
+// Columns returned by the index — deliberately no notes_md, to keep it small.
+const LIST_COLUMNS =
+  "id, title, date_text, date_status, status, updated_at, updated_by, version";
+
+async function listSessions(request, env) {
+  const url = new URL(request.url);
+  const archived = url.searchParams.get("archived") === "1";
+  const comparison = archived ? "=" : "!=";
+  const { results } = await env.DB.prepare(
+    `SELECT ${LIST_COLUMNS} FROM sessions
+     WHERE status ${comparison} 'archived'
+     ORDER BY updated_at DESC`
+  ).all();
+  return json(results || []);
+}
+
+async function createSession(request, env, auth) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    body = null;
+  }
+  let title = body && typeof body.title === "string" ? body.title.trim() : "";
+  if (title.length > TITLE_MAX) title = title.slice(0, TITLE_MAX);
+
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  await env.DB.prepare(
+    `INSERT INTO sessions
+       (id, title, date_text, date_status, status, notes_md,
+        version, updated_at, updated_by, created_at)
+     VALUES (?, ?, '', 'none', 'idea', '', 1, ?, ?, ?)`
+  )
+    .bind(id, title, now, auth.u, now)
+    .run();
+
+  return json(await rowById(env, id), 201);
+}
+
+async function getSessionRecord(env, id) {
+  const row = await rowById(env, id);
+  if (!row) return json({ error: "Session not found" }, 404);
+  return json(row);
+}
+
+async function updateSession(request, env, auth, id) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    body = null;
+  }
+  if (!body || typeof body !== "object") {
+    return json({ error: "Invalid request body" }, 400);
+  }
+
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const dateText =
+    typeof body.date_text === "string" ? body.date_text.trim() : "";
+  const dateStatus = body.date_status;
+  const status = body.status;
+  const notesMd = typeof body.notes_md === "string" ? body.notes_md : "";
+  const version = body.version;
+
+  // Server-side validation — mandatory. Never trust the client's copy.
+  if (title.length > TITLE_MAX) {
+    return json({ error: "Title is too long" }, 400);
+  }
+  if (!DATE_STATUSES.includes(dateStatus)) {
+    return json({ error: "Invalid date status" }, 400);
+  }
+  if (!STATUSES.includes(status)) {
+    return json({ error: "Invalid session status" }, 400);
+  }
+  if (byteLength(notesMd) > NOTES_MAX_BYTES) {
+    return json({ error: "Notes are too large (200 KB limit)" }, 413);
+  }
+  if (!Number.isInteger(version)) {
+    return json({ error: "Missing version" }, 400);
+  }
+
+  const existing = await rowById(env, id);
+  if (!existing) return json({ error: "Session not found" }, 404);
+
+  const now = new Date().toISOString();
+  const nextVersion = existing.version + 1;
+
+  // Atomic compare-and-set: the WHERE clause guards the version so two
+  // concurrent writers cannot both succeed.
+  const result = await env.DB.prepare(
+    `UPDATE sessions
+        SET title = ?, date_text = ?, date_status = ?, status = ?,
+            notes_md = ?, version = ?, updated_at = ?, updated_by = ?
+      WHERE id = ? AND version = ?`
+  )
+    .bind(
+      title,
+      dateText,
+      dateStatus,
+      status,
+      notesMd,
+      nextVersion,
+      now,
+      auth.u,
+      id,
+      version
+    )
+    .run();
+
+  if (!result.meta || result.meta.changes === 0) {
+    // Version moved under us — return the current server record so the
+    // client can offer a non-destructive choice (full handling in Phase 4).
+    return json({ error: "Conflict", current: existing }, 409);
+  }
+
+  return json(await rowById(env, id));
+}
+
+async function deleteSession(env, id) {
+  await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(id).run();
+  return new Response(null, {
+    status: 204,
+    headers: { "cache-control": "no-store" },
+  });
+}
+
+async function rowById(env, id) {
+  return await env.DB.prepare("SELECT * FROM sessions WHERE id = ?")
+    .bind(id)
+    .first();
+}
+
+function byteLength(str) {
+  return new TextEncoder().encode(str).length;
 }
 
 // ---------------------------------------------------------------------------

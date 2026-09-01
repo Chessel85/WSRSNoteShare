@@ -87,9 +87,11 @@ public/                     static site
   js/api.js                 fetch wrappers + ApiError
   js/app.js                 shared auth gate + header/nav/sign-out shell
   js/auth.js                login form
-  js/index.js               active sessions table (Phase 2)
-  js/archive.js             archived sessions table (Phase 2)
-  js/session.js             session page controller (Phases 2-4)
+  js/index.js               active sessions index + "New session" (Phase 2)
+  js/archive.js             archived sessions + restore (Phase 2)
+  js/session.js             session page: structured fields, save, delete (Phases 2-4)
+  js/sessions-table.js      shared sortable table (Phase 2)
+  js/labels.js              enum labels + date sort key (Phase 2)
   js/editor.js              textarea, toolbar, preview, autosave, drafts (Phase 3)
 functions/api/[[path]].js   the API (Pages Function)
 schema.sql                  D1 schema

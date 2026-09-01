@@ -1,18 +1,32 @@
-// Archived sessions page.
+// Archived sessions page (Phase 2).
 //
-// Phase 1: auth-gate placeholder. Phase 2 renders the archived sessions table
-// (shared table code with the active index) plus "Restore to active".
+// The shared sortable table with archived=1, plus a per-row "Restore to active".
 
 import { boot } from "./app.js";
+import { renderSessionsTable } from "./sessions-table.js";
 
-boot((user, main) => {
-  main.innerHTML = "";
+boot((_user, main) => {
+  main.textContent = "";
+
   const h1 = document.createElement("h1");
   h1.textContent = "Archived sessions";
-  main.append(h1);
-  const p = document.createElement("p");
-  p.textContent = `Signed in as ${user}. The archive list arrives in the next phase.`;
-  main.append(p);
   h1.tabIndex = -1;
+  main.append(h1);
+
+  const intro = document.createElement("p");
+  intro.textContent =
+    "Sessions with status Archived. Restoring one sets its status to Ready; " +
+    "adjust it on the session page if needed.";
+  main.append(intro);
+
+  const live = document.createElement("p");
+  live.className = "sr-live";
+  live.setAttribute("aria-live", "polite");
+  main.append(live);
+
+  const tableHost = document.createElement("div");
+  main.append(tableHost);
+  renderSessionsTable(tableHost, { archived: true, liveRegion: live });
+
   h1.focus();
 });

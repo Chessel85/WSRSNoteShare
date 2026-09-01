@@ -143,6 +143,118 @@ button:disabled {
   font-weight: 600;
 }
 
+/* --- Phase 2: tables, session form, actions ---------------------------- */
+
+.toolbar {
+  margin: 1rem 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+caption {
+  text-align: left;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+th, td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+thead th {
+  background: var(--accent-bg);
+}
+.sort-btn {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0;
+  font-weight: 700;
+}
+.sort-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* Session form */
+.session-form {
+  max-width: 44rem;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+.field input[type="text"],
+.field select,
+.field textarea {
+  width: 100%;
+}
+.field textarea {
+  min-height: 18rem;
+  resize: vertical;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+}
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.save-status {
+  font-weight: 600;
+  min-height: 1.5em;
+}
+.save-status.error {
+  color: var(--error);
+}
+
+/* Actions */
+.session-actions {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+button.danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+button.danger:hover:not(:disabled) {
+  border-color: var(--error);
+}
+.confirm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 2px solid var(--error);
+  border-radius: 4px;
+  max-width: 28rem;
+}
+
+.conflict-reload {
+  margin-bottom: 1rem;
+}
+
+/* Visually present but primarily an announcement target */
+.sr-live {
+  min-height: 1.5em;
+  margin: 0.5rem 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

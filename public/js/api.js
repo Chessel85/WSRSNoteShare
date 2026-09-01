@@ -60,4 +60,15 @@ export const api = {
   me: () => request("GET", "/api/me"),
   login: (passphrase) => request("POST", "/api/login", { passphrase }),
   logout: () => request("POST", "/api/logout"),
+
+  listSessions: (archived = false) =>
+    request("GET", `/api/sessions?archived=${archived ? 1 : 0}`),
+  getSession: (id) =>
+    request("GET", `/api/sessions/${encodeURIComponent(id)}`),
+  createSession: (title) =>
+    request("POST", "/api/sessions", { title: title || "" }),
+  updateSession: (id, data) =>
+    request("PUT", `/api/sessions/${encodeURIComponent(id)}`, data),
+  deleteSession: (id) =>
+    request("DELETE", `/api/sessions/${encodeURIComponent(id)}`),
 };

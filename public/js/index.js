@@ -1,24 +1,56 @@
-// Active sessions index page.
+// Active sessions index page (Phase 2).
 //
-// Phase 1: just proves the auth gate works — shows who is signed in.
-// Phase 2 replaces renderIndex() with the real sortable sessions table.
+// A "New session" button plus the shared sortable table of non-archived sessions.
 
 import { boot } from "./app.js";
+import { api, ApiError } from "./api.js";
+import { renderSessionsTable } from "./sessions-table.js";
 
 boot(renderIndex);
 
-function renderIndex(user, main) {
-  main.innerHTML = "";
+function renderIndex(_user, main) {
+  main.textContent = "";
 
   const h1 = document.createElement("h1");
   h1.textContent = "Active sessions";
+  h1.tabIndex = -1;
   main.append(h1);
 
-  const p = document.createElement("p");
-  p.textContent = `Signed in as ${user}. The sessions list arrives in the next phase.`;
-  main.append(p);
+  const live = document.createElement("p");
+  live.className = "sr-live";
+  live.setAttribute("aria-live", "polite");
+  main.append(live);
 
-  // Move focus to the heading so the page change is announced.
-  h1.tabIndex = -1;
+  const toolbar = document.createElement("div");
+  toolbar.className = "toolbar";
+  const newBtn = document.createElement("button");
+  newBtn.type = "button";
+  newBtn.textContent = "New session";
+  toolbar.append(newBtn);
+  main.append(toolbar);
+
+  const tableHost = document.createElement("div");
+  main.append(tableHost);
+  renderSessionsTable(tableHost, { archived: false, liveRegion: live });
+
+  newBtn.addEventListener("click", async () => {
+    newBtn.disabled = true;
+    const previous = newBtn.textContent;
+    newBtn.textContent = "Creating…";
+    try {
+      const record = await api.createSession("");
+      // Focus lands on the new session's <h1> once that page loads.
+      location.href = `/session?id=${encodeURIComponent(record.id)}`;
+    } catch (err) {
+      newBtn.disabled = false;
+      newBtn.textContent = previous;
+      live.setAttribute("role", "alert");
+      live.textContent =
+        err instanceof ApiError
+          ? `Could not create a session: ${err.message}`
+          : "Could not create a session.";
+    }
+  });
+
   h1.focus();
 }

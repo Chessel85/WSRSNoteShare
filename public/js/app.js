@@ -8,8 +8,8 @@ import { api, ApiError } from "./api.js";
 import { renderLogin } from "./auth.js";
 
 const NAV_LINKS = [
-  { href: "/", text: "Active sessions" },
-  { href: "/archive.html", text: "Archive" },
+  { href: "/", text: "Active sessions", match: (p) => p === "/" || p === "/index.html" },
+  { href: "/archive", text: "Archive", match: (p) => p === "/archive" || p === "/archive.html" },
 ];
 
 export async function boot(render) {
@@ -62,7 +62,7 @@ function mountShell(user) {
     const a = document.createElement("a");
     a.href = link.href;
     a.textContent = link.text;
-    if (location.pathname === link.href) a.setAttribute("aria-current", "page");
+    if (link.match(location.pathname)) a.setAttribute("aria-current", "page");
     li.append(a);
     list.append(li);
   }
