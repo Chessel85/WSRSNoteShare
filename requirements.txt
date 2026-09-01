@@ -1,0 +1,21 @@
+I want to have a web site hosted on a GitHub repo which:
+* Is to be used by myself (the owner of the github account and the repo) plus one friend
+* The web site is to allow my friend and I to share notes on a series of mini-projects we work on together
+* My friend is on Mac and I use Firefox on Windows.  Plus I am an NVDA user so accessibility for screen readers is essential.
+* The site will probably need some kind of authentication.  Although the content of the  notes is not super sensitive, it will likely contain names, email addresses and phone numbers.  But accessing the page should be as simple as possible for my friend and I  
+* The projects my friend and I work on are a series of Zoom meetings for the Wildlife Sound Recording Society (WSRS). We call them Listening Sessions and consist of guest speakers presenting on their specialist knowledge related to sound recording wildlife.  It takes time and the collection of information to organise these events and the site is to facilitate our organisation of them.
+
+Pages could well include:
+* An index of active listening sessions in the planning
+* A page for each listening session 
+* A page indexing archived sessions 
+
+A session probably has details like:
+* Date of session, though this can be blank, and might be just a month and year rather than a full dd/mm/yyyy
+* Date status - examples are none, rough, pencilled in, confirmed 
+* Title of session 
+* Session status - idea, firming up, well formed, ready to roll, archived  
+* A large notes area.  A basic implementation would have this just as a plain text area but a more sophisticated implementation would support headings, bulleted and numbered lists, tables - all accessible with NVDA quick nav keystrokes but also editable wysiwyg.
+*  The notes need to be saved when a person leaves the page or closes their browser.  Or as a minimum, need a save button.
+* A nice to have feature would be real-time collaboration so if both my friend and I are on a session page at the same time we can see what the other person has done a short time after they have done it without having to refresh the page (or might have to go with refreshing the page)
+
