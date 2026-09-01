@@ -1,0 +1,6 @@
+# Copy to .dev.vars (git-ignored) for `wrangler pages dev`.
+# In production these are set as Cloudflare Pages secrets, not from a file.
+
+PASSPHRASE_A="LionCabbageKingfisher"
+PASSPHRASE_B="OtterBrambleCurlew"
+SESSION_SECRET="generate-with: openssl rand -base64 48"

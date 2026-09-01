@@ -1,0 +1,19 @@
+# Secrets — never commit
+.dev.vars
+.env
+.env.*
+*.local
+
+# Wrangler / Cloudflare
+.wrangler/
+dist/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
