@@ -71,4 +71,7 @@ export const api = {
     request("PUT", `/api/sessions/${encodeURIComponent(id)}`, data),
   deleteSession: (id) =>
     request("DELETE", `/api/sessions/${encodeURIComponent(id)}`),
+
+  // Phase 4: the polling endpoint — [{id, version, updated_at, updated_by}].
+  versions: () => request("GET", "/api/versions"),
 };

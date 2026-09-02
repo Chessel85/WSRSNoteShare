@@ -5,6 +5,7 @@
 //
 // Phase 1 implements: POST /api/login, POST /api/logout, GET /api/me.
 // Phase 2 adds the /api/sessions CRUD routes.
+// Phase 4 adds GET /api/versions — the tiny endpoint the session page polls.
 
 const COOKIE_NAME = "wsrs_session";
 const SESSION_TTL_SECONDS = 7776000; // 90 days
@@ -36,6 +37,14 @@ export async function onRequest(context) {
     }
     if (path === "/api/me" && method === "GET") {
       return await handleMe(request, env);
+    }
+
+    // The polling endpoint: tiny list of {id, version, updated_at, updated_by}.
+    if (path === "/api/versions" && method === "GET") {
+      const auth = await readSession(request, env);
+      if (!auth) return json({ error: "Not signed in" }, 401);
+      if (!env.DB) return json({ error: "Database is not configured" }, 503);
+      return await listVersions(env);
     }
 
     // Everything under /api/sessions requires a valid session.
@@ -150,6 +159,15 @@ async function listSessions(request, env) {
   return json(results || []);
 }
 
+// Deliberately small: the session page fetches this every 15 s to notice a
+// change the other person made. No notes_md, no titles — just versions.
+async function listVersions(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT id, version, updated_at, updated_by FROM sessions"
+  ).all();
+  return json(results || []);
+}
+
 async function createSession(request, env, auth) {
   let body;
   try {
@@ -245,8 +263,8 @@ async function updateSession(request, env, auth, id) {
     .run();
 
   if (!result.meta || result.meta.changes === 0) {
-    // Version moved under us — return the current server record so the
-    // client can offer a non-destructive choice (full handling in Phase 4).
+    // Version moved under us — return the current server record (with its
+    // notes_md) so the client can offer the three-way non-destructive choice.
     return json({ error: "Conflict", current: existing }, 409);
   }
 

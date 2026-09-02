@@ -13,9 +13,15 @@
 //   5. a per-device localStorage draft mirrored on every keystroke, offered
 //      back on load when it is newer than and differs from the server copy
 //
-// Phase 4 expands the 409 handling into the three-way Keep mine / Use theirs /
-// Show both choice. For now a conflict is surfaced with a Reload action and
-// nothing is overwritten.
+// Phase 4 adds collaboration:
+//   * GET /api/versions polled every 15 s while the page is open
+//   * polling pauses when the tab is hidden and fires immediately on return
+//   * a remote change with a CLEAN editor refreshes the page in place and
+//     announces "Updated by X" politely
+//   * a remote change with a DIRTY editor shows a persistent, focusable banner
+//     and never overwrites the editor
+//   * a 409 on save offers the three-way Keep mine / Use theirs / Show both
+//     choice — nothing is auto-merged and nothing is silently discarded
 
 import { boot } from "./app.js";
 import { api, ApiError } from "./api.js";
@@ -30,6 +36,7 @@ const params = new URLSearchParams(location.search);
 const sessionId = params.get("id");
 
 const AUTOSAVE_MS = 1500;
+const POLL_MS = 15000; // check for the other person's changes every 15 s
 const KEEPALIVE_MAX_BYTES = 60 * 1024; // keepalive bodies are capped near 64 KB
 const DRAFT_PREFIX = "wsrs-draft:";
 const DRAFT_FIELDS = ["title", "date_text", "date_status", "status", "notes_md"];
@@ -68,6 +75,11 @@ class SessionPage {
     this.saving = false;
     this.autosaveTimer = null;
     this.pendingDraft = null;
+    // Collaboration (Phase 4).
+    this.lastSeenVersion = null; // highest version we have shown or acknowledged
+    this.pollTimer = null;
+    this.remoteBanner = null;
+    this.collab = null;
   }
 
   async init() {
@@ -79,6 +91,7 @@ class SessionPage {
     try {
       this.record = await api.getSession(sessionId);
       this.version = this.record.version;
+      this.lastSeenVersion = this.record.version;
     } catch (err) {
       this.renderLoadError(err);
       return;
@@ -98,6 +111,7 @@ class SessionPage {
 
     this.render();
     this.installBackstops();
+    this.startPolling();
   }
 
   renderLoadError(err) {
@@ -131,6 +145,13 @@ class SessionPage {
     this.main.append(h1);
 
     document.title = `${r.title || "Untitled session"} — WSRS Listening Sessions Notes`;
+
+    // A polite live region dedicated to collaborator updates — separate from
+    // the save-status line so the two purposes never fight over one region.
+    this.collab = document.createElement("p");
+    this.collab.className = "sr-live";
+    this.collab.setAttribute("aria-live", "polite");
+    this.main.append(this.collab);
 
     if (this.pendingDraft) this.renderDraftBanner();
 
@@ -460,8 +481,10 @@ class SessionPage {
       const updated = await api.updateSession(sessionId, payload);
       this.record = updated;
       this.version = updated.version;
+      this.lastSeenVersion = updated.version;
       this.dirty = false;
       clearDraft(sessionId);
+      this.clearConflictUi();
       document.title = `${updated.title || "Untitled session"} — WSRS Listening Sessions Notes`;
       this.setStatus(
         `Saved ${formatEdited(updated.updated_at)}${
@@ -495,26 +518,256 @@ class SessionPage {
     this.renderSideActions();
   }
 
+  // --- collaboration: polling -----------------------------------------
+
+  startPolling() {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        this.poll(); // catch up immediately, then poll() reschedules itself
+      } else {
+        clearTimeout(this.pollTimer);
+      }
+    });
+    this.schedulePoll();
+  }
+
+  schedulePoll() {
+    clearTimeout(this.pollTimer);
+    if (document.visibilityState === "hidden") return;
+    this.pollTimer = setTimeout(() => this.poll(), POLL_MS);
+  }
+
+  async poll() {
+    if (this.saving) {
+      this.schedulePoll();
+      return;
+    }
+    let list;
+    try {
+      list = await api.versions();
+    } catch {
+      this.schedulePoll(); // transient — try again next tick
+      return;
+    }
+    this.schedulePoll();
+
+    const entry = Array.isArray(list)
+      ? list.find((v) => v.id === sessionId)
+      : null;
+    if (!entry) {
+      this.handleRemoteDeleted();
+      return;
+    }
+    if (entry.version <= this.lastSeenVersion) return;
+    this.handleRemoteChange(entry);
+  }
+
+  async handleRemoteChange(entry) {
+    // Acknowledge this version now so we react once per remote change, not
+    // every 15 s while a banner is already up.
+    this.lastSeenVersion = entry.version;
+    const who = entry.updated_by ? ` by ${entry.updated_by}` : "";
+
+    if (this.dirty) {
+      this.showRemoteBanner(entry);
+      return;
+    }
+
+    // Editor is clean — safe to pull the new version in and show it.
+    try {
+      const fresh = await api.getSession(sessionId);
+      this.applyRecord(fresh);
+      this.announceCollab(
+        `Updated${who} ${formatEdited(fresh.updated_at)}. ` +
+          "This page now shows the latest version."
+      );
+    } catch {
+      this.showRemoteBanner(entry);
+    }
+  }
+
+  handleRemoteDeleted() {
+    if (this.remoteBanner) return;
+    const banner = this.makeRemoteBanner(
+      "This session has been deleted on another device. Your text is still " +
+        "in the editor — copy anything you need before leaving this page.",
+      { reload: false }
+    );
+    this.remoteBanner = banner;
+    this.main.querySelector("h1").after(banner);
+    banner.focus();
+  }
+
+  showRemoteBanner(entry) {
+    const who = entry.updated_by || "Someone else";
+    const text =
+      `${who} has changed this session (now version ${entry.version}). ` +
+      "Save your changes, then reload to see theirs.";
+    if (this.remoteBanner) {
+      this.remoteBanner.querySelector("p").textContent = text;
+      return;
+    }
+    const banner = this.makeRemoteBanner(text, { reload: true });
+    this.remoteBanner = banner;
+    this.main.querySelector("h1").after(banner);
+    banner.focus();
+  }
+
+  makeRemoteBanner(text, { reload }) {
+    const banner = document.createElement("div");
+    banner.className = "remote-banner";
+    banner.setAttribute("role", "region");
+    banner.setAttribute("aria-label", "Someone else changed this session");
+    banner.tabIndex = -1;
+
+    const p = document.createElement("p");
+    p.textContent = text;
+    banner.append(p);
+
+    if (reload) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Reload latest version";
+      btn.addEventListener("click", () => location.reload());
+      banner.append(btn);
+    }
+    return banner;
+  }
+
+  announceCollab(message) {
+    if (this.collab) this.collab.textContent = message;
+  }
+
+  clearConflictUi() {
+    if (this.remoteBanner) {
+      this.remoteBanner.remove();
+      this.remoteBanner = null;
+    }
+    const box = this.main.querySelector(".conflict-box");
+    if (box) box.remove();
+  }
+
+  // Replace every visible field + the editor with a server record, and treat
+  // it as the new clean baseline. Used by "Use theirs" and by a clean refresh.
+  applyRecord(record) {
+    this.record = record;
+    this.version = record.version;
+    this.lastSeenVersion = record.version;
+    this.dirty = false;
+    clearTimeout(this.autosaveTimer);
+    clearDraft(sessionId);
+
+    this.titleInput.value = record.title || "";
+    this.dateInput.value = record.date_text || "";
+    this.dateStatusSelect.value = record.date_status;
+    this.statusSelect.value = record.status;
+    if (this.editor) this.editor.value = record.notes_md || "";
+
+    document.title = `${record.title || "Untitled session"} — WSRS Listening Sessions Notes`;
+    this.clearConflictUi();
+    this.baselineStatus();
+    this.refreshArchiveButton();
+  }
+
+  // --- conflicts: the three-way, non-destructive choice ----------------
+
   handleConflict(current) {
-    const serverWhen = current ? formatEdited(current.updated_at) : "just now";
-    const serverWho =
+    clearTimeout(this.autosaveTimer);
+    const existing = this.main.querySelector(".conflict-box");
+    if (existing) existing.remove();
+
+    const when = current ? formatEdited(current.updated_at) : "just now";
+    const who =
       current && current.updated_by ? ` by ${current.updated_by}` : "";
     this.setStatus(
-      `This session was changed elsewhere ${serverWhen}${serverWho}. ` +
-        "Your text is still in the box. Reload to see the current version, " +
-        "then reapply your changes.",
+      `This session was also changed elsewhere ${when}${who}. Nothing has ` +
+        "been saved or overwritten — choose how to resolve it below.",
       true
     );
 
-    // A focusable Reload control next to the status line.
-    if (this.main.querySelector(".conflict-reload")) return;
-    const reload = document.createElement("button");
-    reload.type = "button";
-    reload.className = "conflict-reload";
-    reload.textContent = "Reload latest version";
-    reload.addEventListener("click", () => location.reload());
-    this.status.after(reload);
-    reload.focus();
+    const box = document.createElement("div");
+    box.className = "conflict-box";
+    box.setAttribute("role", "group");
+    box.setAttribute("aria-label", "Resolve editing conflict");
+    box.tabIndex = -1;
+
+    const p = document.createElement("p");
+    p.textContent =
+      "Your version and the other person's version differ. Your text is " +
+      "still in the editor. Pick one:";
+    box.append(p);
+
+    const keepMine = document.createElement("button");
+    keepMine.type = "button";
+    keepMine.textContent = "Keep mine — replace theirs";
+    keepMine.addEventListener("click", () => {
+      box.remove();
+      // Adopt the server's version number so the retried PUT is accepted,
+      // then save our current editor contents over theirs.
+      if (current) this.version = current.version;
+      this.lastSeenVersion = this.version;
+      this.dirty = true;
+      this.save();
+    });
+
+    const useTheirs = document.createElement("button");
+    useTheirs.type = "button";
+    useTheirs.textContent = "Use theirs — discard my changes";
+    useTheirs.addEventListener("click", async () => {
+      box.remove();
+      try {
+        const fresh = current || (await api.getSession(sessionId));
+        this.applyRecord(fresh);
+        this.setStatus("Switched to the other person's version.");
+        this.editor.focus();
+      } catch {
+        this.setStatus(
+          "Could not load the other version — reload the page.",
+          true
+        );
+      }
+    });
+
+    const showBoth = document.createElement("button");
+    showBoth.type = "button";
+    showBoth.textContent = "Show both — append theirs";
+    showBoth.addEventListener("click", async () => {
+      box.remove();
+      let theirs = current;
+      if (!theirs) {
+        try {
+          theirs = await api.getSession(sessionId);
+        } catch {
+          theirs = null;
+        }
+      }
+      const theirNotes = theirs && theirs.notes_md ? theirs.notes_md : "";
+      const heading =
+        "## Conflicted copy" +
+        (theirs && theirs.updated_by ? ` — ${theirs.updated_by}` : "") +
+        (theirs && theirs.updated_at
+          ? ` (${formatEdited(theirs.updated_at)})`
+          : "");
+      this.editor.value =
+        this.editor.value.replace(/\s*$/, "") +
+        "\n\n" +
+        heading +
+        "\n\n" +
+        theirNotes +
+        "\n";
+      if (theirs) this.version = theirs.version;
+      this.lastSeenVersion = this.version;
+      this.dirty = true;
+      this.setStatus(
+        "The other version is appended under a “Conflicted copy” heading. " +
+          "Review it, then press Save now."
+      );
+      this.editor.focus();
+    });
+
+    box.append(keepMine, useTheirs, showBoth);
+    this.status.after(box);
+    box.focus();
   }
 }
 

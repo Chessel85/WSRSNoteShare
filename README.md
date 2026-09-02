@@ -75,6 +75,21 @@ reopen a session with newer unsaved changes on that device, it offers to
 restore them rather than overwriting either side. Preview HTML is sanitised
 with DOMPurify before display.
 
+## Working together
+
+While a session is open it checks every 15 seconds for changes the other
+person has made (polling `GET /api/versions`; paused while the tab is hidden,
+resumed on return). If they saved something and your editor has no unsaved
+changes, the page quietly refreshes to their version and announces "Updated by
+&hellip;". If you _do_ have unsaved changes, a banner appears instead and
+nothing you typed is touched — save first, then reload.
+
+If you both saved edits to the same session, the second save is rejected and
+you are offered a three-way choice: **Keep mine** (replace theirs), **Use
+theirs** (discard your changes), or **Show both** (append theirs under a
+`## Conflicted copy` heading so you can merge by hand). Edits are never
+auto-merged and no side's text is discarded without you choosing it.
+
 ## Rotating a passphrase
 
 Only the owner can do this, and it needs no code change:

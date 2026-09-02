@@ -334,6 +334,38 @@ button.danger:hover:not(:disabled) {
 }
 .draft-banner p { margin: 0; }
 
+/* --- Phase 4: collaboration --------------------------------------- */
+
+/* "Someone else changed this session" — persistent and focusable. */
+.remote-banner {
+  border: 2px solid var(--focus);
+  background: var(--accent-bg);
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 0 0 1.5rem;
+  max-width: 44rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.remote-banner p { margin: 0; }
+
+/* The three-way conflict choice, shown next to the save-status line. */
+.conflict-box {
+  border: 2px solid var(--error);
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 1rem 0;
+  max-width: 44rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.conflict-box p { margin: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
