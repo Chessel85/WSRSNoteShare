@@ -58,6 +58,7 @@ not archived) in a table with these columns:
 | **Date** | Whatever was typed in the date box — a full date, "March 2026", or blank. |
 | **Date status** | How firm the date is: *Not set*, *Vague*, *Pencilled in*, *Confirmed*. |
 | **Session status** | How far along planning is: *Idea*, *Firming up*, *Well formed*, *Ready*, *Archived*. |
+| **Type** | What kind of session it is: *To be confirmed*, *Listening session*, *Learning session*. |
 | **Last edited** | When it was last saved, and by whom. |
 
 **Sorting.** Every column heading is a button. Select it to sort by that column;
@@ -86,7 +87,7 @@ page whenever you like.
 
 ## A session page
 
-A session page has four short fields at the top, then the notes area, then a
+A session page has five short fields at the top, then the notes area, then a
 **Save now** button and an **Actions** section.
 
 - **Title** — free text.
@@ -97,6 +98,8 @@ A session page has four short fields at the top, then the notes area, then a
 - **Session status** — a menu: *Idea*, *Firming up*, *Well formed*, *Ready*,
   *Archived*. Setting this to *Archived* moves the session to the Archive page
   (there is also a button for that — see below).
+- **Type** — a menu: *To be confirmed*, *Listening session*, *Learning session*.
+  New sessions start as *To be confirmed*.
 
 Just below the page heading is a line that tells you the save state and, after a
 save, when it was last saved and by whom.

@@ -31,6 +31,11 @@ Prerequisites: a free Cloudflare account and `npm i -g wrangler`, then `wrangler
    ```
    wrangler d1 execute wsrs-notes --remote --file=schema.sql
    ```
+   An existing database created before the `session_type` column also needs the
+   one migration in `migrations/`:
+   ```
+   wrangler d1 execute wsrs-notes --remote --file=migrations/2026-09-02-session-type.sql
+   ```
 
 4. **Create the Pages project:** Cloudflare dashboard → Workers & Pages → Create →
    Pages → Connect to Git → pick this repo. Build command: none. Output directory:

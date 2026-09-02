@@ -225,6 +225,7 @@ Defined in `schema.sql`. Two tables.
 | `date_text` | TEXT | **Free text on purpose** — `''`, `March 2026`, `14 March 2026`. A real date column would make "spring 2026" unrepresentable. Sorting the index by date is therefore best‑effort; blank/unparseable dates sort last. |
 | `date_status` | TEXT | One of `none`, `rough`, `pencilled`, `confirmed`. |
 | `status` | TEXT | One of `idea`, `firming_up`, `well_formed`, `ready`, `archived`. Archiving is just this column — there is no separate archive table. |
+| `session_type` | TEXT | One of `tbc`, `listening`, `learning`. Shown as "Type" (To be confirmed / Listening session / Learning session); defaults to `tbc`. |
 | `notes_md` | TEXT | The notes, as Markdown. Capped at ~200 KB. |
 | `version` | INTEGER | Incremented on every save. Powers conflict detection and change polling (see §9). |
 | `updated_at` | TEXT | ISO‑8601 UTC. |
@@ -239,9 +240,14 @@ One row per `(ip, 15‑minute window)`, holding a count. Old rows are cleared
 opportunistically on each failed attempt. Nothing sensitive; it could be wiped
 at any time with no lasting effect.
 
-The server **re‑validates every write**: `date_status` and `status` must be one
-of the allowed values, the title length and notes size are bounded, and the
-`version` must be an integer. The client's copy of the rules is never trusted.
+The server **re‑validates every write**: `date_status`, `status`, and
+`session_type` must be one of the allowed values, the title length and notes
+size are bounded, and the `version` must be an integer. The client's copy of the
+rules is never trusted.
+
+Adding `session_type` to a database created before it existed: run
+`migrations/2026-09-02-session-type.sql` (`schema.sql` already carries it for
+fresh installs).
 
 ---
 

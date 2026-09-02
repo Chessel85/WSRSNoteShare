@@ -17,6 +17,7 @@ const RATE_LIMIT_WINDOW_SECONDS = 900; // 15 minutes
 // Allowed enum values — the client's copy is never trusted.
 const DATE_STATUSES = ["none", "rough", "pencilled", "confirmed"];
 const STATUSES = ["idea", "firming_up", "well_formed", "ready", "archived"];
+const SESSION_TYPES = ["tbc", "listening", "learning"];
 const TITLE_MAX = 500;
 const NOTES_MAX_BYTES = 200 * 1024;
 
@@ -155,7 +156,7 @@ async function handleMe(request, env) {
 
 // Columns returned by the index — deliberately no notes_md, to keep it small.
 const LIST_COLUMNS =
-  "id, title, date_text, date_status, status, updated_at, updated_by, version";
+  "id, title, date_text, date_status, status, session_type, updated_at, updated_by, version";
 
 async function listSessions(request, env) {
   const url = new URL(request.url);
@@ -195,6 +196,11 @@ const STATUS_LABELS = {
   well_formed: "Well formed",
   ready: "Ready",
   archived: "Archived",
+};
+const SESSION_TYPE_LABELS = {
+  tbc: "To be confirmed",
+  listening: "Listening session",
+  learning: "Learning session",
 };
 
 async function exportAll(request, env) {
@@ -270,6 +276,9 @@ function exportMarkdown(rows) {
     out.push("| Field | Value |");
     out.push("| --- | --- |");
     out.push(`| Session status | ${STATUS_LABELS[r.status] || r.status} |`);
+    out.push(
+      `| Type | ${SESSION_TYPE_LABELS[r.session_type] || r.session_type} |`
+    );
     out.push(`| Date | ${mdCell(r.date_text) || "—"} |`);
     out.push(
       `| Date status | ${DATE_STATUS_LABELS[r.date_status] || r.date_status} |`
@@ -308,9 +317,9 @@ async function createSession(request, env, auth) {
   const id = crypto.randomUUID();
   await env.DB.prepare(
     `INSERT INTO sessions
-       (id, title, date_text, date_status, status, notes_md,
+       (id, title, date_text, date_status, status, session_type, notes_md,
         version, updated_at, updated_by, created_at)
-     VALUES (?, ?, '', 'none', 'idea', '', 1, ?, ?, ?)`
+     VALUES (?, ?, '', 'none', 'idea', 'tbc', '', 1, ?, ?, ?)`
   )
     .bind(id, title, now, auth.u, now)
     .run();
@@ -340,6 +349,7 @@ async function updateSession(request, env, auth, id) {
     typeof body.date_text === "string" ? body.date_text.trim() : "";
   const dateStatus = body.date_status;
   const status = body.status;
+  const sessionType = body.session_type;
   const notesMd = typeof body.notes_md === "string" ? body.notes_md : "";
   const version = body.version;
 
@@ -352,6 +362,9 @@ async function updateSession(request, env, auth, id) {
   }
   if (!STATUSES.includes(status)) {
     return json({ error: "Invalid session status" }, 400);
+  }
+  if (!SESSION_TYPES.includes(sessionType)) {
+    return json({ error: "Invalid session type" }, 400);
   }
   if (byteLength(notesMd) > NOTES_MAX_BYTES) {
     return json({ error: "Notes are too large (200 KB limit)" }, 413);
@@ -371,7 +384,8 @@ async function updateSession(request, env, auth, id) {
   const result = await env.DB.prepare(
     `UPDATE sessions
         SET title = ?, date_text = ?, date_status = ?, status = ?,
-            notes_md = ?, version = ?, updated_at = ?, updated_by = ?
+            session_type = ?, notes_md = ?, version = ?, updated_at = ?,
+            updated_by = ?
       WHERE id = ? AND version = ?`
   )
     .bind(
@@ -379,6 +393,7 @@ async function updateSession(request, env, auth, id) {
       dateText,
       dateStatus,
       status,
+      sessionType,
       notesMd,
       nextVersion,
       now,

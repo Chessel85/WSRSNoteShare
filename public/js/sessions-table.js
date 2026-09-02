@@ -13,6 +13,7 @@
 import {
   dateStatusLabel,
   statusLabel,
+  sessionTypeLabel,
   dateSortKey,
   formatEdited,
 } from "./labels.js";
@@ -23,6 +24,7 @@ const COLUMNS = [
   { key: "date_text", label: "Date" },
   { key: "date_status", label: "Date status" },
   { key: "status", label: "Session status" },
+  { key: "session_type", label: "Type" },
   { key: "updated_at", label: "Last edited" },
 ];
 
@@ -86,6 +88,9 @@ export function renderSessionsTable(container, opts) {
     } else if (sortKey === "status") {
       av = statusLabel(av);
       bv = statusLabel(bv);
+    } else if (sortKey === "session_type") {
+      av = sessionTypeLabel(av);
+      bv = sessionTypeLabel(bv);
     }
     return String(av).localeCompare(String(bv), undefined, {
       sensitivity: "base",
@@ -175,6 +180,7 @@ export function renderSessionsTable(container, opts) {
     tr.append(cell(row.date_text && row.date_text.trim() ? row.date_text : "—"));
     tr.append(cell(dateStatusLabel(row.date_status)));
     tr.append(cell(statusLabel(row.status)));
+    tr.append(cell(sessionTypeLabel(row.session_type)));
 
     const editedCell = document.createElement("td");
     editedCell.textContent = row.updated_by
@@ -205,6 +211,7 @@ export function renderSessionsTable(container, opts) {
         date_text: full.date_text,
         date_status: full.date_status,
         status: "ready",
+        session_type: full.session_type,
         notes_md: full.notes_md,
         version: full.version,
       });

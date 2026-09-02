@@ -29,6 +29,7 @@ import { MarkdownEditor } from "./editor.js";
 import {
   DATE_STATUS_OPTIONS,
   STATUS_OPTIONS,
+  SESSION_TYPE_OPTIONS,
   formatEdited,
 } from "./labels.js";
 
@@ -39,7 +40,14 @@ const AUTOSAVE_MS = 1500;
 const POLL_MS = 15000; // check for the other person's changes every 15 s
 const KEEPALIVE_MAX_BYTES = 60 * 1024; // keepalive bodies are capped near 64 KB
 const DRAFT_PREFIX = "wsrs-draft:";
-const DRAFT_FIELDS = ["title", "date_text", "date_status", "status", "notes_md"];
+const DRAFT_FIELDS = [
+  "title",
+  "date_text",
+  "date_status",
+  "status",
+  "session_type",
+  "notes_md",
+];
 
 boot((user, main) => {
   if (!sessionId) {
@@ -185,6 +193,12 @@ class SessionPage {
       value: r.status,
       options: STATUS_OPTIONS,
     });
+    this.typeSelect = selectField(form, {
+      id: "f-type",
+      label: "Type",
+      value: r.session_type,
+      options: SESSION_TYPE_OPTIONS,
+    });
 
     // Markdown editor: textarea + toolbar + sanitised preview.
     const editorWrap = document.createElement("div");
@@ -202,6 +216,7 @@ class SessionPage {
       this.dateInput,
       this.dateStatusSelect,
       this.statusSelect,
+      this.typeSelect,
     ]) {
       el.addEventListener("input", () => this.markDirty());
       el.addEventListener("blur", () => this.flushSave());
@@ -269,6 +284,7 @@ class SessionPage {
       this.dateInput.value = d.date_text || "";
       this.dateStatusSelect.value = d.date_status || this.record.date_status;
       this.statusSelect.value = d.status || this.record.status;
+      this.typeSelect.value = d.session_type || this.record.session_type;
       this.editor.value = d.notes_md || "";
       this.pendingDraft = null;
       banner.remove();
@@ -400,6 +416,7 @@ class SessionPage {
       date_text: this.dateInput.value,
       date_status: this.dateStatusSelect.value,
       status: this.statusSelect.value,
+      session_type: this.typeSelect.value,
       notes_md: this.editor ? this.editor.value : this.record.notes_md,
       version: this.version,
     };
@@ -662,6 +679,7 @@ class SessionPage {
     this.dateInput.value = record.date_text || "";
     this.dateStatusSelect.value = record.date_status;
     this.statusSelect.value = record.status;
+    this.typeSelect.value = record.session_type;
     if (this.editor) this.editor.value = record.notes_md || "";
 
     document.title = `${record.title || "Untitled session"} — WSRS Listening Sessions Notes`;

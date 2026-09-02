@@ -16,8 +16,15 @@ export const STATUS_OPTIONS = [
   ["archived", "Archived"],
 ];
 
+export const SESSION_TYPE_OPTIONS = [
+  ["tbc", "To be confirmed"],
+  ["listening", "Listening session"],
+  ["learning", "Learning session"],
+];
+
 const DATE_STATUS_MAP = new Map(DATE_STATUS_OPTIONS);
 const STATUS_MAP = new Map(STATUS_OPTIONS);
+const SESSION_TYPE_MAP = new Map(SESSION_TYPE_OPTIONS);
 
 export function dateStatusLabel(value) {
   return DATE_STATUS_MAP.get(value) || value || "Not set";
@@ -25,6 +32,10 @@ export function dateStatusLabel(value) {
 
 export function statusLabel(value) {
   return STATUS_MAP.get(value) || value || "Idea";
+}
+
+export function sessionTypeLabel(value) {
+  return SESSION_TYPE_MAP.get(value) || value || "To be confirmed";
 }
 
 // Best-effort sort key for the free-text date field.

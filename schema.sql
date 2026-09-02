@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS sessions (
                                            -- none | rough | pencilled | confirmed
   status        TEXT NOT NULL DEFAULT 'idea',
                                            -- idea | firming_up | well_formed | ready | archived
+  session_type  TEXT NOT NULL DEFAULT 'tbc',
+                                           -- tbc | listening | learning
   notes_md      TEXT NOT NULL DEFAULT '',
   version       INTEGER NOT NULL DEFAULT 1,
   updated_at    TEXT NOT NULL,             -- ISO 8601 UTC
