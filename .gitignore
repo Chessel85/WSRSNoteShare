@@ -17,3 +17,6 @@ npm-debug.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Rendered previews of the Markdown in docs/ — keep the .md, not the .html
+docs/*.html
