@@ -172,7 +172,6 @@ class SessionPage {
       id: "f-date",
       label: "Date",
       value: r.date_text,
-      hint: 'Free text — leave blank, or e.g. “March 2026” or “14 March 2026”.',
     });
     this.dateStatusSelect = selectField(form, {
       id: "f-date-status",
@@ -209,10 +208,12 @@ class SessionPage {
     }
     this.editor.textarea.addEventListener("blur", () => this.flushSave());
 
-    // Save status: visible line that is also a polite live region.
+    // Save status: a visible line only. It is deliberately NOT a live region —
+    // routine "Saving…" / "Saved 14:32" chatter on every autosave is disruptive
+    // with a screen reader. Failures still announce: setStatus(msg, true) puts
+    // role="alert" on this element, and conflicts raise their own focused UI.
     this.status = document.createElement("p");
     this.status.className = "save-status";
-    this.status.setAttribute("aria-live", "polite");
     this.baselineStatus();
 
     const saveBtn = document.createElement("button");

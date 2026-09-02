@@ -61,12 +61,19 @@ wrangler pages dev
 ## Editing notes
 
 Notes are written as Markdown in a plain `<textarea>` (the most reliably
-accessible editing surface) with a **Write** / **Preview** tab pair —
-`Ctrl+Shift+P` toggles between them. The Preview tab is real semantic HTML, so
-NVDA quick-nav (`H` for headings, `L` for lists, `T` for tables) works there.
-Quick-nav cannot work while editing — inside any editable region NVDA is in
-focus mode — so the accepted trade-off is seeing `## Speaker` rather than large
-bold text while typing. The toolbar buttons insert Markdown at the cursor.
+accessible editing surface) with a **Write** / **Preview** tab pair — `F2`
+toggles between them. The Preview tab is real semantic HTML, so NVDA quick-nav
+(`H` for headings, `L` for lists, `T` for tables) works there. Quick-nav cannot
+work while editing — inside any editable region NVDA is in focus mode — so the
+accepted trade-off is seeing `## Speaker` rather than large bold text while
+typing.
+
+The toolbar buttons work on the current selection: select the text first, then
+press **Heading**, **Bold**, **Bullet list** or **Numbered list**. With nothing
+selected they insert a placeholder at the cursor. **Table** with several lines
+selected turns them into a table — one row per line, cells split on a comma or
+tab, the first line as the header row; with nothing selected it inserts a
+starter table to fill in.
 
 Saving is automatic: 1.5 s after you stop typing, on leaving a field, and as a
 backstop when the tab closes. There is also a **Save now** button (`Ctrl+S` in

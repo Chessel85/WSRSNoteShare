@@ -14,7 +14,7 @@
 // (debounce, blur, pagehide, conflicts, the status line) lives in session.js,
 // which passes an onInput callback fired for both typing and toolbar edits.
 
-const TOGGLE_HINT = "Press Ctrl+Shift+P to switch between Write and Preview.";
+const TOGGLE_HINT = "Press F2 to switch between Write and Preview.";
 
 export class MarkdownEditor {
   // container: element to build into
@@ -92,6 +92,7 @@ export class MarkdownEditor {
     hint.id = `${this.id}-hint`;
     hint.textContent =
       `Markdown syntax. ${TOGGLE_HINT} ` +
+      "Toolbar buttons format the selected text, or insert at the cursor. " +
       "Heading / list / table quick-navigation works in the Preview tab.";
     this.textarea.setAttribute("aria-describedby", hint.id);
 
@@ -119,9 +120,10 @@ export class MarkdownEditor {
 
     root.append(tablist, this.writePanel, this.previewPanel);
 
-    // Ctrl+Shift+P toggles from anywhere inside the editor.
+    // F2 toggles Write / Preview from anywhere inside the editor. (A plain
+    // function key, so it collides with neither Firefox shortcuts nor NVDA.)
     root.addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "p") {
+      if (e.key === "F2") {
         e.preventDefault();
         const next =
           this.writeTab.getAttribute("aria-selected") === "true"
@@ -292,7 +294,35 @@ export class MarkdownEditor {
   }
 
   _insertTable() {
-    const { start, value } = this._field();
+    const { start, end, value } = this._field();
+    const selected = value.slice(start, end);
+
+    // With text selected, convert it: one row per line, cells split on a tab
+    // or comma, first row treated as the header.
+    if (selected.trim()) {
+      const rows = selected
+        .replace(/\s+$/, "")
+        .split("\n")
+        .map((line) => line.split(/\t|,/).map((cell) => cell.trim()));
+      const cols = Math.max(...rows.map((r) => r.length));
+      const rowMd = (cells) => {
+        const padded = cells.slice();
+        while (padded.length < cols) padded.push("");
+        return `| ${padded.join(" | ")} |`;
+      };
+      const divider = `| ${Array(cols).fill("---").join(" | ")} |`;
+      const body = rows.slice(1).map(rowMd);
+      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+      const lead = start === lineStart ? "" : "\n";
+      const md =
+        lead + [rowMd(rows[0]), divider, ...body].join("\n") + "\n";
+      const next = value.slice(0, start) + md + value.slice(end);
+      const caret = start + md.length;
+      this._setValue(next, caret, caret);
+      return;
+    }
+
+    // Nothing selected: drop in a starter table to fill in.
     const lineStart = value.lastIndexOf("\n", start - 1) + 1;
     const atLineStart = start === lineStart;
     const table =

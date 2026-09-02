@@ -3,7 +3,7 @@
 
 export const DATE_STATUS_OPTIONS = [
   ["none", "Not set"],
-  ["rough", "Rough idea"],
+  ["rough", "Vague"],
   ["pencilled", "Pencilled in"],
   ["confirmed", "Confirmed"],
 ];
