@@ -21,10 +21,10 @@ import { api, ApiError } from "./api.js";
 
 const COLUMNS = [
   { key: "title", label: "Title" },
+  { key: "session_type", label: "Type" },
   { key: "date_text", label: "Date" },
   { key: "date_status", label: "Date status" },
   { key: "status", label: "Session status" },
-  { key: "session_type", label: "Type" },
   { key: "updated_at", label: "Last edited" },
 ];
 
@@ -177,10 +177,10 @@ export function renderSessionsTable(container, opts) {
     titleCell.append(link);
     tr.append(titleCell);
 
+    tr.append(cell(sessionTypeLabel(row.session_type)));
     tr.append(cell(row.date_text && row.date_text.trim() ? row.date_text : "—"));
     tr.append(cell(dateStatusLabel(row.date_status)));
     tr.append(cell(statusLabel(row.status)));
-    tr.append(cell(sessionTypeLabel(row.session_type)));
 
     const editedCell = document.createElement("td");
     editedCell.textContent = row.updated_by

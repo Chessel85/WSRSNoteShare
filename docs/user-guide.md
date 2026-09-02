@@ -55,10 +55,10 @@ not archived) in a table with these columns:
 | Column | Meaning |
 | --- | --- |
 | **Title** | The session name. Select it to open the session. |
+| **Type** | What kind of session it is: *To be confirmed*, *Listening session*, *Learning session*. |
 | **Date** | Whatever was typed in the date box — a full date, "March 2026", or blank. |
 | **Date status** | How firm the date is: *Not set*, *Vague*, *Pencilled in*, *Confirmed*. |
 | **Session status** | How far along planning is: *Idea*, *Firming up*, *Well formed*, *Ready*, *Archived*. |
-| **Type** | What kind of session it is: *To be confirmed*, *Listening session*, *Learning session*. |
 | **Last edited** | When it was last saved, and by whom. |
 
 **Sorting.** Every column heading is a button. Select it to sort by that column;
