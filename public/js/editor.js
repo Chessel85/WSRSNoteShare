@@ -120,18 +120,22 @@ export class MarkdownEditor {
 
     root.append(tablist, this.writePanel, this.previewPanel);
 
-    // F2 toggles Write / Preview from anywhere inside the editor. (A plain
-    // function key, so it collides with neither Firefox shortcuts nor NVDA.)
-    root.addEventListener("keydown", (e) => {
-      if (e.key === "F2") {
-        e.preventDefault();
-        const next =
-          this.writeTab.getAttribute("aria-selected") === "true"
-            ? this.previewTab
-            : this.writeTab;
-        this._selectTab(next, { focus: true });
-      }
-    });
+    // F2 toggles Write / Preview. Bound on `document`, not `root`, so it works
+    // the instant the session page loads — at that point focus is still on the
+    // page <h1>, outside the editor, and a listener on `root` would never see
+    // the keypress. (A plain function key, so it collides with neither Firefox
+    // shortcuts nor NVDA.)
+    this._onF2 = (e) => {
+      if (e.key !== "F2") return;
+      if (!root.isConnected) return; // editor was torn down
+      e.preventDefault();
+      const next =
+        this.writeTab.getAttribute("aria-selected") === "true"
+          ? this.previewTab
+          : this.writeTab;
+      this._selectTab(next, { focus: true });
+    };
+    document.addEventListener("keydown", this._onF2);
 
     container.append(root);
   }
