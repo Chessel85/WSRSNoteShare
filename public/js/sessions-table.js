@@ -1,8 +1,14 @@
 // Shared sortable sessions table, used by both the active index and the archive.
 //
-// A real <table> with <caption>, <th scope="col">, and sortable column headers
-// that are <button>s inside the <th> carrying aria-sort. Clicking a header sorts
-// by that column; clicking it again reverses the direction.
+// A real <table> with <th scope="col"> and sortable column headers that are
+// <button>s inside the <th> carrying aria-sort. Clicking a header sorts by that
+// column; clicking it again reverses the direction.
+//
+// The table is named with aria-labelledby pointing at a visible <h2>, NOT a
+// <caption>. With a <caption>, NVDA's "jump to next table" (T) lands the browse
+// cursor on the caption text, where the table-navigation keys report "not in a
+// table" until you arrow down into a cell. An <h2> + aria-labelledby keeps the
+// visible, quick-nav-reachable heading while letting T land straight in the grid.
 
 import {
   dateStatusLabel,
@@ -98,12 +104,18 @@ export function renderSessionsTable(container, opts) {
       return;
     }
 
-    const table = document.createElement("table");
-    const caption = document.createElement("caption");
-    caption.textContent = archived
+    const heading = document.createElement("h2");
+    heading.id = archived
+      ? "archived-sessions-caption"
+      : "active-sessions-caption";
+    heading.className = "table-caption";
+    heading.textContent = archived
       ? `Archived sessions (${rows.length})`
       : `Active sessions (${rows.length})`;
-    table.append(caption);
+    wrap.append(heading);
+
+    const table = document.createElement("table");
+    table.setAttribute("aria-labelledby", heading.id);
 
     const theadRow = document.createElement("tr");
     for (const col of COLUMNS) {

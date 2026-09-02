@@ -154,10 +154,12 @@ table {
   width: 100%;
   margin: 1rem 0;
 }
-caption {
-  text-align: left;
+/* Names the table (aria-labelledby). A heading, not a <caption>, so NVDA's
+   "next table" jump lands in the grid rather than on caption text. */
+.table-caption {
+  font-size: 1.1rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  margin: 1rem 0 0.5rem;
 }
 th, td {
   text-align: left;

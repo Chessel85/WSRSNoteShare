@@ -179,7 +179,7 @@ The owner is a daily NVDA user. Treat these as tests.
 - Live regions: `aria-live="polite"` for save status and collaborator updates; `role="alert"` for errors. One region per purpose; never fire on every keystroke.
 - Errors are text, adjacent to the field, referenced by `aria-describedby`, never colour-only.
 - Contrast ≥ 4.5:1; respect `prefers-reduced-motion` and `prefers-color-scheme`.
-- Tables use `<th scope="col">` and a `<caption>`, and are real tables — never a grid of `<div>`s.
+- Tables use `<th scope="col">` and are real tables — never a grid of `<div>`s. Name the table with a visible `<h2>` referenced by `aria-labelledby`, **not** a `<caption>`: with a `<caption>`, NVDA's "jump to next table" (`T`) lands the browse cursor on the caption text, where the table-navigation keys report "not in a table" until the user arrows into a cell.
 - Do not use `aria-*` where a native element exists. Never add `role="application"`.
 - Test in Firefox + NVDA on Windows, and verify keyboard-only operation on macOS Safari for the friend.
 
