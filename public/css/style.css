@@ -255,6 +255,85 @@ button.danger:hover:not(:disabled) {
   margin: 0.5rem 0;
 }
 
+/* --- Phase 3: Markdown editor --------------------------------------- */
+
+.md-editor {
+  margin-top: 0.25rem;
+}
+.md-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 2px solid var(--border);
+}
+.md-tab {
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--bg);
+  padding: 0.4rem 1rem;
+  margin-bottom: -2px;
+}
+.md-tab[aria-selected="true"] {
+  background: var(--accent-bg);
+  border-bottom: 2px solid var(--accent-bg);
+  font-weight: 700;
+}
+
+.md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0.5rem;
+}
+.md-tool {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.95rem;
+}
+.md-textarea-label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+.md-textarea {
+  width: 100%;
+  min-height: 18rem;
+  resize: vertical;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+}
+
+#md-panel-preview {
+  padding-top: 0.75rem;
+}
+.md-preview {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  min-height: 18rem;
+  overflow-x: auto;
+}
+.md-preview > :first-child { margin-top: 0; }
+.md-preview table {
+  width: auto;
+  min-width: 60%;
+}
+.md-preview-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.draft-banner {
+  border: 2px solid var(--focus);
+  background: var(--accent-bg);
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  max-width: 44rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.draft-banner p { margin: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

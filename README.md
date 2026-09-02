@@ -58,6 +58,23 @@ wrangler d1 execute wsrs-notes --local --file=schema.sql
 wrangler pages dev
 ```
 
+## Editing notes
+
+Notes are written as Markdown in a plain `<textarea>` (the most reliably
+accessible editing surface) with a **Write** / **Preview** tab pair —
+`Ctrl+Shift+P` toggles between them. The Preview tab is real semantic HTML, so
+NVDA quick-nav (`H` for headings, `L` for lists, `T` for tables) works there.
+Quick-nav cannot work while editing — inside any editable region NVDA is in
+focus mode — so the accepted trade-off is seeing `## Speaker` rather than large
+bold text while typing. The toolbar buttons insert Markdown at the cursor.
+
+Saving is automatic: 1.5 s after you stop typing, on leaving a field, and as a
+backstop when the tab closes. There is also a **Save now** button (`Ctrl+S` in
+the editor). A per-device copy is mirrored to the browser as you type; if you
+reopen a session with newer unsaved changes on that device, it offers to
+restore them rather than overwriting either side. Preview HTML is sanitised
+with DOMPurify before display.
+
 ## Rotating a passphrase
 
 Only the owner can do this, and it needs no code change:
@@ -92,7 +109,8 @@ public/                     static site
   js/session.js             session page: structured fields, save, delete (Phases 2-4)
   js/sessions-table.js      shared sortable table (Phase 2)
   js/labels.js              enum labels + date sort key (Phase 2)
-  js/editor.js              textarea, toolbar, preview, autosave, drafts (Phase 3)
+  js/editor.js              Markdown textarea, toolbar, sanitised preview (Phase 3)
+  js/vendor/                pinned, same-origin copies of marked + DOMPurify
 functions/api/[[path]].js   the API (Pages Function)
 schema.sql                  D1 schema
 wrangler.toml               Pages + D1 config
