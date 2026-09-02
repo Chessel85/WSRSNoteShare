@@ -109,11 +109,92 @@ Enter the new three-word passphrase. It takes effect on the next deploy/request.
 Existing sessions stay signed in until their 90-day cookie expires; to force
 everyone out, also rotate `SESSION_SECRET`.
 
-## Restoring from an export
+## Backups and restoring
 
-`GET /api/export` downloads every session as Markdown (or JSON). If Cloudflare is
-ever lost, the notes can be recreated from the most recent export. Keep exports
-somewhere safe; an optional nightly cron backup is described in the plan (Phase 5).
+### Taking a backup
+
+Signed in, the active-sessions page has **"Download a backup of every session:
+Markdown · JSON"** at the foot of the list. Both cover every session, active and
+archived. Direct links (session cookie required):
+
+```
+https://wsrs-notes.pages.dev/api/export?format=md
+https://wsrs-notes.pages.dev/api/export?format=json
+```
+
+- **Markdown** (`wsrs-notes-YYYY-MM-DD.md`) — human-readable: one `##` section per
+  session with a details table (status, date, last edited, version, id) followed
+  by its notes verbatim. This is the copy to keep and read.
+- **JSON** (`wsrs-notes-YYYY-MM-DD.json`) — `{exported_at, count, sessions:[…]}`
+  with every column, including `version` and timestamps. This is the copy to
+  restore from.
+
+Do this now and then, and keep the file somewhere that is not Cloudflare.
+
+### Restoring after losing Cloudflare
+
+There is no bulk import endpoint by design (two people, rare event). To rebuild:
+
+1. Stand the app back up: create a new D1 database, apply `schema.sql`, redeploy
+   (see one-time setup above).
+2. From the most recent JSON export, recreate each session. Either re-enter them
+   by hand from the Markdown copy, or feed the JSON to `wrangler d1 execute`, e.g.
+   generate one `INSERT INTO sessions (...) VALUES (...)` per element of
+   `sessions[]` and run:
+   ```
+   wrangler d1 execute wsrs-notes --remote --file=restore.sql
+   ```
+   Keep each row's original `id`, `created_at` and `version` so links and
+   conflict detection stay consistent.
+
+### Optional: nightly off-site backup (cron)
+
+Pages Functions cannot run on a schedule, so an automated backup is a **separate,
+optional Worker** in its own project. Sketch:
+
+```js
+// backup-worker/src/index.js  — deploy with its own wrangler.toml + cron trigger
+export default {
+  async scheduled(_event, env, ctx) {
+    const res = await fetch("https://wsrs-notes.pages.dev/api/export?format=json", {
+      headers: { cookie: `wsrs_session=${env.BACKUP_SESSION_COOKIE}` },
+    });
+    const body = await res.text();
+    // PUT it to a private GitHub repo via the contents API, or to an R2 bucket.
+    await fetch(
+      "https://api.github.com/repos/<you>/<private-backup-repo>/contents/wsrs-notes-latest.json",
+      {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${env.GITHUB_TOKEN}`,
+          "user-agent": "wsrs-backup",
+          accept: "application/vnd.github+json",
+        },
+        body: JSON.stringify({
+          message: `backup ${new Date().toISOString()}`,
+          content: btoa(unescape(encodeURIComponent(body))),
+          sha: env.LAST_SHA, // omit on first run; fetch current sha on later runs
+        }),
+      }
+    );
+  },
+};
+```
+
+```toml
+# backup-worker/wrangler.toml
+name = "wsrs-notes-backup"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+[triggers]
+crons = ["17 3 * * *"]   # 03:17 UTC nightly
+```
+
+Secrets on that worker: `BACKUP_SESSION_COOKIE` (sign in once as a normal user and
+copy the `wsrs_session` cookie value — it lasts 90 days, so refresh it quarterly),
+`GITHUB_TOKEN` (a fine-grained PAT with Contents: read/write on the private backup
+repo only). This is a nicety, not required — a manual download every week or two
+is enough for two people.
 
 ## Files
 

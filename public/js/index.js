@@ -33,6 +33,23 @@ function renderIndex(_user, main) {
   main.append(tableHost);
   renderSessionsTable(tableHost, { archived: false, liveRegion: live });
 
+  // Phase 5: the backup escape hatch. Plain links — the server sends the file
+  // as a download (Content-Disposition), so no script is involved.
+  const exportP = document.createElement("p");
+  exportP.className = "export-links";
+  const exportLabel = document.createElement("span");
+  exportLabel.textContent = "Download a backup of every session: ";
+  const mdLink = document.createElement("a");
+  mdLink.href = "/api/export?format=md";
+  mdLink.textContent = "Markdown";
+  mdLink.setAttribute("download", "");
+  const jsonLink = document.createElement("a");
+  jsonLink.href = "/api/export?format=json";
+  jsonLink.textContent = "JSON";
+  jsonLink.setAttribute("download", "");
+  exportP.append(exportLabel, mdLink, document.createTextNode(" · "), jsonLink);
+  main.append(exportP);
+
   newBtn.addEventListener("click", async () => {
     newBtn.disabled = true;
     const previous = newBtn.textContent;

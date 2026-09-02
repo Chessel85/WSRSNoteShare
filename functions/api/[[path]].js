@@ -6,6 +6,8 @@
 // Phase 1 implements: POST /api/login, POST /api/logout, GET /api/me.
 // Phase 2 adds the /api/sessions CRUD routes.
 // Phase 4 adds GET /api/versions — the tiny endpoint the session page polls.
+// Phase 5 adds GET /api/export — download every session as Markdown or JSON,
+//   the escape hatch so Cloudflare is not a single point of failure.
 
 const COOKIE_NAME = "wsrs_session";
 const SESSION_TTL_SECONDS = 7776000; // 90 days
@@ -45,6 +47,14 @@ export async function onRequest(context) {
       if (!auth) return json({ error: "Not signed in" }, 401);
       if (!env.DB) return json({ error: "Database is not configured" }, 503);
       return await listVersions(env);
+    }
+
+    // Full backup download — every session, active and archived.
+    if (path === "/api/export" && method === "GET") {
+      const auth = await readSession(request, env);
+      if (!auth) return json({ error: "Not signed in" }, 401);
+      if (!env.DB) return json({ error: "Database is not configured" }, 503);
+      return await exportAll(request, env);
     }
 
     // Everything under /api/sessions requires a valid session.
@@ -166,6 +176,122 @@ async function listVersions(env) {
     "SELECT id, version, updated_at, updated_by FROM sessions"
   ).all();
   return json(results || []);
+}
+
+// ---------------------------------------------------------------------------
+// Export (Phase 5) — the escape hatch: pull everything out in one download.
+// ---------------------------------------------------------------------------
+
+// Human-readable labels for the two enums. Kept in step with public/js/labels.js.
+const DATE_STATUS_LABELS = {
+  none: "Not set",
+  rough: "Vague",
+  pencilled: "Pencilled in",
+  confirmed: "Confirmed",
+};
+const STATUS_LABELS = {
+  idea: "Idea",
+  firming_up: "Firming up",
+  well_formed: "Well formed",
+  ready: "Ready",
+  archived: "Archived",
+};
+
+async function exportAll(request, env) {
+  const url = new URL(request.url);
+  const format = (url.searchParams.get("format") || "md").toLowerCase();
+
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM sessions ORDER BY created_at ASC"
+  ).all();
+  const rows = results || [];
+
+  const stamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const disposition = (ext) =>
+    `attachment; filename="wsrs-notes-${stamp}.${ext}"`;
+
+  if (format === "json") {
+    const payload = {
+      exported_at: new Date().toISOString(),
+      count: rows.length,
+      sessions: rows,
+    };
+    return new Response(JSON.stringify(payload, null, 2), {
+      status: 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "content-disposition": disposition("json"),
+        "cache-control": "no-store",
+      },
+    });
+  }
+
+  return new Response(exportMarkdown(rows), {
+    status: 200,
+    headers: {
+      "content-type": "text/markdown; charset=utf-8",
+      "content-disposition": disposition("md"),
+      "cache-control": "no-store",
+    },
+  });
+}
+
+function exportMarkdown(rows) {
+  const active = rows.filter((r) => r.status !== "archived").length;
+  const archived = rows.length - active;
+  const now = new Date().toISOString().replace("T", " ").slice(0, 16);
+
+  const out = [];
+  out.push("# WSRS Listening Sessions Notes — full export");
+  out.push("");
+  out.push(
+    `Exported ${now} UTC · ${rows.length} session${rows.length === 1 ? "" : "s"}` +
+      ` (${active} active, ${archived} archived)`
+  );
+  out.push("");
+  out.push(
+    "Plain-text backup of every session in the database. To rebuild from this " +
+      'file see "Restoring from an export" in README.md.'
+  );
+
+  rows.forEach((r, i) => {
+    const edited = r.updated_at
+      ? r.updated_at.replace("T", " ").slice(0, 16) + " UTC"
+      : "—";
+    const created = r.created_at
+      ? r.created_at.replace("T", " ").slice(0, 16) + " UTC"
+      : "—";
+    out.push("");
+    out.push("---");
+    out.push("");
+    const heading = r.title ? r.title.replace(/\r?\n/g, " ").trim() : "";
+    out.push(`## ${i + 1}. ${heading || "Untitled session"}`);
+    out.push("");
+    out.push("| Field | Value |");
+    out.push("| --- | --- |");
+    out.push(`| Session status | ${STATUS_LABELS[r.status] || r.status} |`);
+    out.push(`| Date | ${mdCell(r.date_text) || "—"} |`);
+    out.push(
+      `| Date status | ${DATE_STATUS_LABELS[r.date_status] || r.date_status} |`
+    );
+    out.push(`| Last edited | ${edited}${r.updated_by ? " by " + mdCell(r.updated_by) : ""} |`);
+    out.push(`| Created | ${created} |`);
+    out.push(`| Version | ${r.version} |`);
+    out.push(`| ID | ${r.id} |`);
+    out.push("");
+    out.push(r.notes_md && r.notes_md.trim() ? r.notes_md.replace(/\s+$/, "") : "_(no notes)_");
+  });
+
+  out.push("");
+  return out.join("\n");
+}
+
+// Keep a value on one Markdown table row: escape pipes, flatten newlines.
+function mdCell(value) {
+  return String(value == null ? "" : value)
+    .replace(/\r?\n/g, " ")
+    .replace(/\|/g, "\\|")
+    .trim();
 }
 
 async function createSession(request, env, auth) {
